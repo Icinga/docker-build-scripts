@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+set -e
+source "$(dirname "$(readlink -f "$0")")"/functions-debian.sh
+
+(
+  set -ex
+  rm -f *.version *.tar*
+  rm -rf "${BUILDDIR}/"
+)
+
+echo "[ git show ]"
+GIT_PAGER=cat git show -s
+echo
+
+echo "[ git status ]"
+GIT_PAGER=cat git status
+echo
+
+# creating project directory
+(
+  set -ex
+  mkdir "${BUILDDIR}" "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"
+  cp -r ${ICINGA_BUILD_DEB_FLAVOR}/debian "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"/
+)
+
+# download archive
+if [ "${ICINGA_BUILD_TYPE}" == "release" ] ; then
+  echo "[ Downloading current tarball with uscan ]"
+  (
+    set -ex
+    cd "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"
+    uscan --download-current-version --verbose
+  )
+else
+  (
+    set -ex
+    #export UPSTREAM_GIT_NOUPDATE=1 UPSTREAM_GIT_NOREPO=1
+    #GIT_DIR=packaging/.git
+    UPSTREAM_GIT_BRANCH="$ICINGA_BUILD_UPSTREAM_BRANCH" ./get_snapshot
+    mv -t "${BUILDDIR}/" *.version *.tar*
+  )
+fi
+
+set -x
+
+# figure out version
+if [ "${ICINGA_BUILD_TYPE}" == "release" ] ; then
+  tarball=$(ls ${BUILDDIR}/${ICINGA_BUILD_PROJECT}_*.orig.tar.*)
+
+  debian_version=`dpkg-parsechangelog -l"${BUILDDIR}/${ICINGA_BUILD_PROJECT}/debian/changelog" | egrep '^Version:' | cut -f 2- -d ' '`
+  version=`echo "$debian_version" | cut -d- -f1`
+  package_version="${debian_version}.${ICINGA_BUILD_DIST}"
+
+  target_dist="icinga-${ICINGA_BUILD_DIST}"
+else
+  # snapshots
+  version=`cat "${BUILDDIR}/${ICINGA_BUILD_PROJECT}.version" | cut -f1`
+  git_commit=`cat "${BUILDDIR}/${ICINGA_BUILD_PROJECT}.version" | cut -f2`
+  tarball=`cat "${BUILDDIR}/${ICINGA_BUILD_PROJECT}.version" | cut -f3`
+
+  build_suffix=".`date +%Y.%m.%d.%H.%M`+${ICINGA_BUILD_DIST}"
+  package_version="${version}${build_suffix}-0"
+
+  target_dist="icinga-${ICINGA_BUILD_DIST}-${ICINGA_BUILD_TYPE}"
+  if [ "${ICINGA_BUILD_TYPE}" = snapshots ]; then
+    target_dist="${target_dist}s" # snapshots
+  fi
+
+  # link tarball as unique version
+  tarball_name="${tarball%.orig.tar*}"
+  tarball_suffix="${tarball:${#tarball_name}}"
+  versioned_tarball="${tarball_name}${build_suffix}${tarball_suffix}"
+  ln -s "$tarball" "${BUILDDIR}/$versioned_tarball"
+fi
+
+# extracting source into package source tree
+tar xf "${BUILDDIR}/${tarball}" --strip 1 -C "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"/
+
+# build source debian package
+cd "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"
+export DEBFULLNAME="Icinga Build System"
+export DEBEMAIL="info@icinga.com"
+
+if [ "${ICINGA_BUILD_TYPE}" = "release" ] ; then
+  dch --force-bad-version --newversion="$package_version" --distribution="$target_dist" -- \
+    "Debian/Ubuntu package for $target_dist" < /dev/null
+else
+  dch --force-bad-version --newversion="$package_version" --distribution="$target_dist" -- \
+    "Snapshot build for version ${version}" \
+    "based on GIT commit ${git_commit}" \
+    "WARNING: this build is intended for testing and experimental usage and" \
+    "should not be used in a production environment!" < /dev/null
+fi
+
+dpkg-buildpackage -S -uc -us -nc -d

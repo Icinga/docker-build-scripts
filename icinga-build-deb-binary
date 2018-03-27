@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+source "$(dirname "$(readlink -f "$0")")"/functions-debian.sh
+
+# enabling ccache
+PATH=/usr/lib/ccache:"$PATH"
+export CCACHE_DIR="${WORKDIR}/ccache"
+
+echo "[ apt-get update ]"
+sudo apt-get update
+
+echo "[ Extracting source to build directory ]"
+(
+  set -ex
+  cd "${BUILDDIR}/"
+  rm -rf "${ICINGA_BUILD_PROJECT}"
+  dpkg-source -x *.dsc "${ICINGA_BUILD_PROJECT}"
+)
+
+echo "[ Installing build dependencies ]"
+(
+  set -ex
+  cd "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"
+  sudo /usr/lib/pbuilder/pbuilder-satisfydepends
+)
+
+# Building the package
+binopts=
+if [ "${ICINGA_BUILD_ARCH}" != "amd64" ]; then
+  binopts="-B"
+fi
+
+echo "[ Building binary package ]"
+(
+  set -ex
+  cd "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"
+  dpkg-buildpackage -rfakeroot -uc -us $binopts
+)
