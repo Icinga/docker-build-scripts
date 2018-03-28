@@ -17,9 +17,13 @@ usage() {
 }
 
 TARGET="$1"
+shift
 if [ -z "$TARGET" ]; then
   echo "Target is missing!" >&2
   exit 1
+fi
+if [ $# -eq 0 ]; then
+  set -- icinga-build-package
 fi
 
 DOCKER_IMAGE="${ICINGA_DOCKER_ORG}/${TARGET}"
@@ -53,6 +57,6 @@ docker run -i --rm "${dockeropt[@]}" \
   --workdir /tmp/build \
   --user jenkins \
   "${DOCKER_IMAGE}" \
-  "icinga-build-package"
+  "$@"
 
 # vi: ts=2 sw=2 expandtab
