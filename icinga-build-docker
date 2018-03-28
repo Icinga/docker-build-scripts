@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -e
+
+## config
+: ${ICINGA_DOCKER_REGISTRY:=}
+: ${ICINGA_DOCKER_ORG:="icinga"}
+: ${ICINGA_DOCKER_PULL:=1}
+
+## functions
+usage() {
+  echo "$0 <target>"
+  echo
+}
+
+TARGET="$1"
+if [ -z "$TARGET" ]; then
+  echo "Target is missing!" >&2
+  exit 1
+fi
+
+DOCKER_IMAGE="${ICINGA_DOCKER_ORG}/${TARGET}"
+if [ -n "${ICINGA_DOCKER_REGISTRY}" ]; then
+  DOCKER_IMAGE="${ICINGA_DOCKER_REGISTRY}/${DOCKER_IMAGE}"
+fi
+
+if [ "$ICINGA_DOCKER_PULL" = 1 ]; then
+  echo "[ Pulling Docker image ]"
+  ( set -ex; docker pull "${DOCKER_IMAGE}" )
+fi
+
+dockeropt=
+[ ! -t 0 ] || dockeropt='-t'
+
+echo "[ Running build in Docker ]"
+set -ex
+docker run -i $dockeropt --rm \
+  -v "$(dirname "$(readlink -f "$0")")":/usr/local/bin:ro \
+  -v `pwd`:/tmp/build \
+  --workdir /tmp/build \
+  --user jenkins \
+  "${DOCKER_IMAGE}" \
+  "icinga-build-package"
+
+# vi: ts=2 sw=2 expandtab
