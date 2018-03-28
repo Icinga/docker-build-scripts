@@ -59,7 +59,7 @@ else
   git_commit=`cat "${BUILDDIR}/${ICINGA_BUILD_PROJECT}.version" | cut -f2`
   tarball=`cat "${BUILDDIR}/${ICINGA_BUILD_PROJECT}.version" | cut -f3`
 
-  build_suffix=".`date +%Y.%m.%d.%H.%M`+${ICINGA_BUILD_DIST}"
+  build_suffix=".`date +%Y%m%d.%H%M`+${ICINGA_BUILD_DIST}"
   package_version="${version}${build_suffix}-0"
 
   target_dist="icinga-${ICINGA_BUILD_DIST}-${ICINGA_BUILD_TYPE}"
