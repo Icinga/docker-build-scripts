@@ -43,6 +43,7 @@ echo "[ Installing build dependencies ]"
 
 echo "[ Preparing ccache for our environment ]"
 export CCACHE_DIR="${WORKDIR}/ccache"
+rm -f ccache.stats
 preconfigure_ccache
 
 # reset ccache statistics
@@ -67,7 +68,7 @@ eval "$(get_rpmbuild --rebuild "${source_rpm}")"
 )
 
 # save ccache statistics
-ccache -s | tee ccache.stats # (--show-stats)
+ccache -s | tee ccache/ccache.stats # (--show-stats)
 
 echo "[ Running rpmlint ]"
 (

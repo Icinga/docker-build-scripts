@@ -68,7 +68,7 @@ echo "[ Building source RPM ]"
   # TODO: when a package is already releases this might be problems in test
   # (he could test the package in repository)
   rpm -qp --queryformat "%{VERSION}-%{RELEASE}" "SRPMS/${ICINGA_BUILD_PROJECT}"*".src.rpm" \
-    >../"${ICINGA_BUILD_PROJECT}-package.version"
+    >"${ICINGA_BUILD_PROJECT}-package.version"
 
 )
 
