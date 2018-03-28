@@ -1,0 +1,5 @@
+# we don't care about who updated the changelog
+changelog-should-mention-nmu
+
+# non standard distribution target
+bad-distribution-in-changes-file

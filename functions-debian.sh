@@ -71,6 +71,7 @@ require_var() {
 : ${ICINGA_BUILD_DEB_FLAVOR:="$ICINGA_BUILD_DIST"}
 : ${ICINGA_BUILD_TYPE:="release"}
 : ${ICINGA_BUILD_UPSTREAM_BRANCH:="master"}
+: ${ICINGA_BUILD_IGNORE_LINT:=1}
 
 print_build_env
 

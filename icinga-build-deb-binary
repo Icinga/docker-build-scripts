@@ -37,3 +37,10 @@ echo "[ Building binary package ]"
   cd "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"
   dpkg-buildpackage -rfakeroot -uc -us $binopts
 )
+
+echo "[ Running Lintian ]"
+(
+  set -ex
+  cd "${BUILDDIR}/${ICINGA_BUILD_PROJECT}/"
+  lintian | tee ../lintian-binary.log
+) || [ "${ICINGA_BUILD_IGNORE_LINT}" -eq 1 ]

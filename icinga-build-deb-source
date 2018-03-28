@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 set -e
-source "$(dirname "$(readlink -f "$0")")"/functions-debian.sh
+SCRIPT_HOME="$(dirname "$(readlink -f "$0")")"
+source "${SCRIPT_HOME}"/functions-debian.sh
 
 (
   set -ex
@@ -63,7 +64,7 @@ else
   package_version="${version}${build_suffix}-0"
 
   target_dist="icinga-${ICINGA_BUILD_DIST}-${ICINGA_BUILD_TYPE}"
-  if [ "${ICINGA_BUILD_TYPE}" = snapshots ]; then
+  if [ "${ICINGA_BUILD_TYPE}" = snapshot ]; then
     target_dist="${target_dist}s" # snapshots
   fi
 
@@ -84,6 +85,24 @@ cd "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"
 export DEBFULLNAME="Icinga Build System"
 export DEBEMAIL="info@icinga.com"
 
+source_overrides_type="${SCRIPT_HOME}/lintian/source.lintian-overrides.${ICINGA_BUILD_TYPE}"
+source_overrides_default="${SCRIPT_HOME}/lintian/source.lintian-overrides"
+if [ -f "${source_overrides_type}" ]; then
+  source_overrides="${source_overrides_type}"
+else
+  source_overrides="${source_overrides_default}"
+fi
+
+if [ -f "${source_overrides}" ]; then
+  echo "Extending lintian source overrides from ${source_overrides}"
+  lintian_target=debian/source/lintian-overrides
+  for f in ${lintian_target} debian/source.lintian-overrides
+  do
+    [ ! -e "${f}" ] || lintian_target="${f}"
+  done
+  tee -a "${lintian_target}" <"${source_overrides}"
+fi
+
 if [ "${ICINGA_BUILD_TYPE}" = "release" ] ; then
   dch --force-bad-version --newversion="$package_version" --distribution="$target_dist" -- \
     "Debian/Ubuntu package for $target_dist" < /dev/null
@@ -96,3 +115,12 @@ else
 fi
 
 dpkg-buildpackage -S -uc -us -nc -d
+
+{ set +x; } &>/dev/null
+
+echo "[ Running Lintian ]"
+(
+  set -ex
+  #cd "${BUILDDIR}/${ICINGA_BUILD_PROJECT}/"
+  lintian | tee ../lintian-source.log
+) || [ "${ICINGA_BUILD_IGNORE_LINT}" -eq 1 ]

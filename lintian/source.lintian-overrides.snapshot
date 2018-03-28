@@ -1,0 +1,9 @@
+# snapshots can have weird versions
+debian-revision-should-not-be-zero
+source-nmu-has-incorrect-version-number
+
+# we don't care about who updated the changelog
+changelog-should-mention-nmu
+
+# non standard distribution target
+bad-distribution-in-changes-file
