@@ -6,6 +6,9 @@ set -e
 : ${ICINGA_DOCKER_REGISTRY:=}
 : ${ICINGA_DOCKER_ORG:="icinga"}
 : ${ICINGA_DOCKER_PULL:=1}
+: ${ICINGA_SCRIPT_DEVEL:=0}
+
+SCRIPT_HOME="$(dirname "$(readlink -f "$0")")"
 
 ## functions
 usage() {
@@ -29,13 +32,17 @@ if [ "$ICINGA_DOCKER_PULL" = 1 ]; then
   ( set -ex; docker pull "${DOCKER_IMAGE}" )
 fi
 
-dockeropt=
-[ ! -t 0 ] || dockeropt='-t'
+dockeropt=()
+[ ! -t 0 ] || [ ! -t 1 ] || dockeropt+=('-t')
+
+if [ "${ICINGA_SCRIPT_DEVEL}" -eq 1 ]; then
+  echo "Running in ICINGA_SCRIPT_DEVEL mode, mounting scripts into container"
+  dockeropt+=(-v "${SCRIPT_HOME}":/usr/local/bin:ro)
+fi
 
 echo "[ Running build in Docker ]"
 set -ex
-docker run -i $dockeropt --rm \
-  -v "$(dirname "$(readlink -f "$0")")":/usr/local/bin:ro \
+docker run -i --rm "${dockeropt[@]}" \
   -v `pwd`:/tmp/build \
   --workdir /tmp/build \
   --user jenkins \
