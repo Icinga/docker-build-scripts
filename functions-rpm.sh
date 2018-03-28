@@ -139,6 +139,7 @@ SUDOSCRIPT
 : ${ICINGA_BUILD_ARCH:=`detect_arch`}
 : ${ICINGA_BUILD_TYPE:="release"}
 : ${ICINGA_BUILD_UPSTREAM_BRANCH:="master"}
+: ${ICINGA_BUILD_IGNORE_LINT:=1}
 
 print_build_env
 

@@ -69,4 +69,9 @@ eval "$(get_rpmbuild --rebuild "${source_rpm}")"
 # save ccache statistics
 ccache -s | tee ccache.stats # (--show-stats)
 
-# TODO: rpmlint for binary packages
+echo "[ Running rpmlint ]"
+(
+  set -ex
+  cd rpmbuild/
+  rpmlint --info --verbose RPMS/**/*.rpm | tee rpmlint-rpm.log; [ "${PIPESTATUS[0]}" -eq 0 ]
+) || [ "${ICINGA_BUILD_IGNORE_LINT}" -eq 1 ]

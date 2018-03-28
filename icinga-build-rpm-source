@@ -76,6 +76,6 @@ echo "[ Running rpmlint ]"
 (
   set -ex
   cd rpmbuild/
-  rpmlint --info --verbose "SPECS/${ICINGA_BUILD_PROJECT}.spec" || true
-  # TODO: rpmlint for binary packages
-)
+  rpmlint --info --verbose "SPECS/${ICINGA_BUILD_PROJECT}.spec" | tee rpmlint-spec.log; [ "${PIPESTATUS[0]}" -eq 0 ]
+  rpmlint --info --verbose "SRPMS/${ICINGA_BUILD_PROJECT}"*".src.rpm" | tee rpmlint-srpm.log; [ "${PIPESTATUS[0]}" -eq 0 ]
+) || [ "${ICINGA_BUILD_IGNORE_LINT}" -eq 1 ]
