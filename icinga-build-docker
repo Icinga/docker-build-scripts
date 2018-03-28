@@ -40,9 +40,15 @@ if [ "${ICINGA_SCRIPT_DEVEL}" -eq 1 ]; then
   dockeropt+=(-v "${SCRIPT_HOME}":/usr/local/bin:ro)
 fi
 
+env_file=`mktemp`
+trap "rm -f ${env_file}" EXIT INT
+
+env | grep -e ^ICINGA > "${env_file}"
+
 echo "[ Running build in Docker ]"
 set -ex
 docker run -i --rm "${dockeropt[@]}" \
+  --env-file "${env_file}" \
   -v `pwd`:/tmp/build \
   --workdir /tmp/build \
   --user jenkins \
