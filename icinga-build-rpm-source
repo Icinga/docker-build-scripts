@@ -21,8 +21,7 @@ echo
   set -ex
   mkdir "${BUILDDIR}"/{,SPECS,SOURCES,BUILD,SRPMS,RPMS}
   cp -v *.spec rpmbuild/SPECS/
-  source_files=($(find -maxdepth 1 -type f ! -name "*.spec"))
-  cp -v -t rpmbuild/SOURCES/ "${source_files[@]}"
+  find -maxdepth 1 -type f ! -name "*.spec" -exec cp -vt rpmbuild/SOURCES/ {} \;
 )
 
 # download archive
