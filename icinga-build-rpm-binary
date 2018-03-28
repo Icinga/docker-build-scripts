@@ -1,0 +1,72 @@
+#!/bin/bash
+
+set -e
+source "$(dirname "$(readlink -f "$0")")"/functions-rpm.sh
+
+source_rpm="$(ls rpmbuild/SRPMS/*.src.rpm)"
+
+if [ $(echo "${source_rpm}" | wc -l) -gt 1 ]; then
+  echo "More than one spec file found:" >&2
+  ls -al rpmbuild/SRPMS >&2
+  exit 1
+fi
+
+echo "[ Update package cache ]"
+(
+  set -ex
+  case "$os" in
+    opensuse|sles)
+      # TODO: can we downgrade this to a simple ref again?
+      # images should be build with clean meta data in the future...
+      sudo zypper clean -a
+      sudo zypper --non-interactive --no-gpg-checks --gpg-auto-import-keys ref
+      ;;
+    *)
+      sudo yum clean expire-cache
+      sudo yum makecache fast
+      ;;
+  esac
+)
+
+echo "[ Installing build dependencies ]"
+(
+  set -ex
+  case "$os" in
+    opensuse|sles)
+      sudo zypper --non-interactive install `rpm -qpR "${source_rpm}"`
+      ;;
+    *)
+      sudo yum-builddep -y "${source_rpm}"
+      ;;
+  esac
+)
+
+echo "[ Preparing ccache for our environment ]"
+export CCACHE_DIR="${WORKDIR}/ccache"
+preconfigure_ccache
+
+# reset ccache statistics
+# so we now the statistics of the new build
+ccache -z # (--zero-stats)
+
+echo "[ Building binary package ]"
+eval "$(get_rpmbuild --rebuild "${source_rpm}")"
+(
+  set -ex
+  # explicitly unset arch, it may conflict with internal scripts
+  # of the tools we build (happens with Icinga 2 and wxWidgets)
+  unset arch
+
+  if [ -e /opt/rh/devtoolset-2 ]; then
+    # Run in a newer compiler environment
+    # Environment needs to be set here for ccache to find the compiler to use...
+    scl enable devtoolset-2 -- "${RPMBUILD[@]}"
+  else
+    "${RPMBUILD[@]}"
+  fi
+)
+
+# save ccache statistics
+ccache -s | tee ccache.stats # (--show-stats)
+
+# TODO: rpmlint for binary packages

@@ -1,0 +1,82 @@
+#!/bin/bash
+
+set -e
+source "$(dirname "$(readlink -f "$0")")"/functions-rpm.sh
+
+(
+  set -ex
+  rm -f *.version *.tar*
+  rm -rf "${BUILDDIR}/"
+)
+
+echo "[ git show ]"
+GIT_PAGER=cat git show -s
+echo
+
+echo "[ git status ]"
+GIT_PAGER=cat git status
+echo
+
+(
+  set -ex
+  mkdir "${BUILDDIR}"/{,SPECS,SOURCES,BUILD,SRPMS,RPMS}
+  cp -v *.spec rpmbuild/SPECS/
+  source_files=($(find -maxdepth 1 -type f ! -name "*.spec"))
+  cp -v -t rpmbuild/SOURCES/ "${source_files[@]}"
+)
+
+# download archive
+if [ "$release_type" == "release" ] ; then
+  echo "[ Downloading current sources with spectool ]"
+  (
+    set -ex
+    cd rpmbuild/SOURCES/
+    spectool -g ../SPECS/*.spec
+  )
+else
+  echo "[ Creating snapshot tarball ]"
+  (
+    set -ex
+    UPSTREAM_GIT_BRANCH="$ICINGA_BUILD_UPSTREAM_BRANCH" ./get_snapshot
+    mv -t "${BUILDDIR}/SOURCES/" *.version *.tar*
+  )
+
+  echo "[ Building snapshot version ]"
+  (
+    set -ex
+    cd rpmbuild/
+
+  	version=`cat SOURCES/"${ICINGA_BUILD_PROJECT}.version" | cut -f1`
+  	revision="0.`date +%Y%m%d.%H%M`"
+  	git_commit=`cat SOURCES/"${ICINGA_BUILD_PROJECT}.version" | cut -f2`
+  	tarball=`cat SOURCES/"${ICINGA_BUILD_PROJECT}.version" | cut -f3`
+
+  	sed -i \
+  	  -e "0,/^Version: /{s/Version: .*/Version: ${version}/}" \
+  	  -e "0,/^Release: /{s/Release: .*/Release: ${revision}%{?dist}/}" \
+  	  -e "0,/^Source0\?: /{s/\(Source0\?\): .*/Source0: ${tarball}/}" \
+  	   "SPECS/${ICINGA_BUILD_PROJECT}.spec"
+  )
+fi
+
+
+echo "[ Building source RPM ]"
+(
+  set -ex
+  cd rpmbuild/
+  rpmbuild --nodeps -bs "SPECS/${ICINGA_BUILD_PROJECT}.spec"
+
+  # TODO: when a package is already releases this might be problems in test
+  # (he could test the package in repository)
+  rpm -qp --queryformat "%{VERSION}-%{RELEASE}" "SRPMS/${ICINGA_BUILD_PROJECT}"*".src.rpm" \
+    >../"${ICINGA_BUILD_PROJECT}-package.version"
+
+)
+
+echo "[ Running rpmlint ]"
+(
+  set -ex
+  cd rpmbuild/
+  rpmlint --info --verbose "SPECS/${ICINGA_BUILD_PROJECT}.spec" || true
+  # TODO: rpmlint for binary packages
+)
