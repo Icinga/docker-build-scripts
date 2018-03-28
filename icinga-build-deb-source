@@ -71,11 +71,13 @@ else
   tarball_name="${tarball%.orig.tar*}"
   tarball_suffix="${tarball:${#tarball_name}}"
   versioned_tarball="${tarball_name}${build_suffix}${tarball_suffix}"
-  ln -s "$tarball" "${BUILDDIR}/$versioned_tarball"
+  ln -s "${tarball}" "${BUILDDIR}/$versioned_tarball"
+
+  tarball="${BUILDDIR}/${tarball}"
 fi
 
 # extracting source into package source tree
-tar xf "${BUILDDIR}/${tarball}" --strip 1 -C "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"/
+tar xf "${tarball}" --strip 1 -C "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"/
 
 # build source debian package
 cd "${BUILDDIR}/${ICINGA_BUILD_PROJECT}"
